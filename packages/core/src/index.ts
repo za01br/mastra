@@ -1,12 +1,17 @@
-interface Config {
-    name: string;
-}
+
 
 type IntegrationEvent = {}
 
 type IntegrationAction<T = unknown, U = unknown> = {}
 
-class IntegrationPlugin { }
+class IntegrationPlugin {
+    name: string
+}
+
+interface Config {
+    name: string;
+    plugins: IntegrationPlugin[]
+}
 class IntegrationFramework {
     //global events grouped by plugin
     globalEvents: Map<string, Record<string, IntegrationEvent>> = new Map();
@@ -14,6 +19,24 @@ class IntegrationFramework {
     // global actions grouped by plugin
     globalActions: Map<string, Record<string, IntegrationAction<any>>> = new Map();
     plugins: Map<string, IntegrationPlugin> = new Map();
+
+    register(pluginDefinition: IntegrationPlugin) {
+        const { name } = pluginDefinition;
+        this.plugins.set(name, pluginDefinition);
+
+        // pluginDefinition.defineEvents();
+
+        // this.globalEvents.set(name, pluginDefinition.getEvents());
+
+        // this.globalEventHandlers.push(
+        //   ...pluginDefinition.getEventHandlers({
+        //     makeAPI: this.makeAPI,
+        //     makeWebhookURL: this.makeWebhookUrl,
+        //   }),
+        // );
+
+        // this.globalActions.set(name, pluginDefinition.getActions({ makeAPI: this.makeAPI }));
+    }
 
 }
 
@@ -23,6 +46,10 @@ export function createFramework(config: Config) {
     console.log(JSON.stringify(config, null, 2))
 
     const framework = new IntegrationFramework();
+
+    config.plugins.forEach((plugin) => {
+        framework.register(plugin)
+    })
 
     return framework;
 }
