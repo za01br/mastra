@@ -11,6 +11,8 @@ class IntegrationPlugin {
 interface Config {
     name: string;
     plugins: IntegrationPlugin[]
+    actions: IntegrationAction[]
+    events: IntegrationEvent[]
 }
 class IntegrationFramework {
     //global events grouped by plugin
@@ -47,9 +49,15 @@ export function createFramework(config: Config) {
 
     const framework = new IntegrationFramework();
 
+    // Register plugins
     config.plugins.forEach((plugin) => {
         framework.register(plugin)
     })
+
+    // Register actions
+
+    // Register events
+    
 
     return framework;
 }
