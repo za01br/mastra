@@ -1,77 +1,78 @@
-import { IntegrationPlugin } from "./plugin"
+import { IntegrationPlugin } from './plugin';
 import {
   IntegrationAction,
   IntegrationActionExcutorParams,
   IntegrationEvent,
-} from "./types"
-import { omitBy } from "lodash"
+} from './types';
+import { omitBy } from 'lodash';
 
 interface Config {
-  name: string
-  plugins: IntegrationPlugin[]
-  SystemActions: IntegrationAction[]
-  SystemEvents: IntegrationEvent[]
+  name: string;
+  plugins: IntegrationPlugin[];
+  SystemActions: IntegrationAction[];
+  SystemEvents: IntegrationEvent[];
 }
 
-const CORE_PLUGIN_NAME = "SYSTEM"
+const CORE_PLUGIN_NAME = 'SYSTEM';
 
 class IntegrationFramework {
   //global events grouped by plugin
-  globalEvents: Map<string, Record<string, IntegrationEvent>> = new Map()
+  globalEvents: Map<string, Record<string, IntegrationEvent>> = new Map();
   // global event handlers
-  globalEventHandlers: any[] = []
+  globalEventHandlers: any[] = [];
   // global actions grouped by plugin
-  globalActions: Map<string, Record<string, IntegrationAction<any>>> = new Map()
-  plugins: Map<string, IntegrationPlugin> = new Map()
+  globalActions: Map<string, Record<string, IntegrationAction<any>>> =
+    new Map();
+  plugins: Map<string, IntegrationPlugin> = new Map();
 
   registerPlugin(pluginDefinition: IntegrationPlugin) {
-    const { name } = pluginDefinition
-    this.plugins.set(name, pluginDefinition)
+    const { name } = pluginDefinition;
+    this.plugins.set(name, pluginDefinition);
 
-    pluginDefinition.defineEvents()
+    pluginDefinition.defineEvents();
 
     this.registerEvents({
       events: Object.values(pluginDefinition.getEvents()),
       pluginName: name,
-    })
+    });
 
-    this.globalEventHandlers.push(...pluginDefinition.getEventHandlers())
+    this.globalEventHandlers.push(...pluginDefinition.getEventHandlers());
 
     this.registerActions({
       actions: Object.values(pluginDefinition.getActions()),
       pluginName: name,
-    })
+    });
   }
 
   registerEvents({
     events,
     pluginName = CORE_PLUGIN_NAME,
   }: {
-    events: IntegrationEvent[]
-    pluginName?: string
+    events: IntegrationEvent[];
+    pluginName?: string;
   }) {
-    const pluginEvents = this.globalEvents.get(pluginName) || {}
+    const pluginEvents = this.globalEvents.get(pluginName) || {};
     this.globalEvents.set(pluginName, {
       ...pluginEvents,
       ...events.reduce((acc, event) => ({ ...acc, [event.key]: event }), {}),
-    })
+    });
   }
 
   registerActions({
     actions,
     pluginName = CORE_PLUGIN_NAME,
   }: {
-    actions: IntegrationAction[]
-    pluginName?: string
+    actions: IntegrationAction[];
+    pluginName?: string;
   }) {
-    const pluginActions = this.globalActions.get(pluginName) || {}
+    const pluginActions = this.globalActions.get(pluginName) || {};
     this.globalActions.set(pluginName, {
       ...pluginActions,
       ...actions.reduce(
         (acc, action) => ({ ...acc, [action.type]: action }),
         {}
       ),
-    })
+    });
   }
 
   availablePlugins() {
@@ -79,46 +80,46 @@ class IntegrationFramework {
       return {
         name,
         plugin,
-      }
-    })
+      };
+    });
   }
 
   getPlugin(name: string) {
-    return this.plugins.get(name)
+    return this.plugins.get(name);
   }
 
   getGlobalEvents() {
-    return this.globalEvents
+    return this.globalEvents;
   }
 
   getSystemEvents() {
-    const events = this.globalEvents.get(CORE_PLUGIN_NAME)
-    return omitBy(events, (value) => value.triggerProperties?.isHidden)
+    const events = this.globalEvents.get(CORE_PLUGIN_NAME);
+    return omitBy(events, (value) => value.triggerProperties?.isHidden);
   }
 
   getEventsByPlugin(name: string) {
-    return this.globalEvents.get(name)
+    return this.globalEvents.get(name);
   }
 
   getGlobalEventHandlers() {
-    return this.globalEventHandlers
+    return this.globalEventHandlers;
   }
 
   getActions() {
-    return this.globalActions
+    return this.globalActions;
   }
 
   getSystemActions() {
-    return this.globalActions.get(CORE_PLUGIN_NAME)
+    return this.globalActions.get(CORE_PLUGIN_NAME);
   }
 
   getActionsByPlugin(name: string, includeHidden?: boolean) {
-    const pluginActions = this.globalActions.get(name)
+    const pluginActions = this.globalActions.get(name);
 
     if (includeHidden) {
-      return pluginActions
+      return pluginActions;
     }
-    return omitBy(pluginActions, (value) => value.isHidden)
+    return omitBy(pluginActions, (value) => value.isHidden);
   }
 
   async executeAction({
@@ -126,55 +127,55 @@ class IntegrationFramework {
     action,
     payload,
   }: {
-    pluginName?: string
-    action: string
-    payload: IntegrationActionExcutorParams<any>
+    pluginName?: string;
+    action: string;
+    payload: IntegrationActionExcutorParams<any>;
   }) {
     if (pluginName === CORE_PLUGIN_NAME) {
-      const actionExecutor = this.globalActions.get(CORE_PLUGIN_NAME)?.[action]
+      const actionExecutor = this.globalActions.get(CORE_PLUGIN_NAME)?.[action];
 
       if (!actionExecutor) {
-        throw new Error(`No global action exists for ${action}`)
+        throw new Error(`No global action exists for ${action}`);
       }
 
-      return actionExecutor.executor(payload)
+      return actionExecutor.executor(payload);
     }
 
-    const plugin = this.getPlugin(pluginName)
+    const plugin = this.getPlugin(pluginName);
     if (!plugin) {
-      throw new Error(`No plugin exists for ${pluginName}`)
+      throw new Error(`No plugin exists for ${pluginName}`);
     }
 
-    const actionExecutor = plugin.getActions()?.[action]
+    const actionExecutor = plugin.getActions()?.[action];
 
     if (!actionExecutor) {
-      throw new Error(`No action exists for ${action} in ${pluginName}`)
+      throw new Error(`No action exists for ${action} in ${pluginName}`);
     }
 
-    return actionExecutor.executor(payload)
+    return actionExecutor.executor(payload);
   }
 }
 
 export function createFramework(config: Config) {
-  console.log("Hello from FRAMEWORK")
-  console.log(JSON.stringify(config, null, 2))
+  console.log('Hello from FRAMEWORK');
+  console.log(JSON.stringify(config, null, 2));
 
-  const framework = new IntegrationFramework()
+  const framework = new IntegrationFramework();
 
   // Register plugins
   config.plugins.forEach((plugin) => {
-    framework.registerPlugin(plugin)
-  })
+    framework.registerPlugin(plugin);
+  });
 
   // Register System actions
   framework.registerActions({
     actions: config.SystemActions,
-  })
+  });
 
   // Register System events
   framework.registerEvents({
     events: config.SystemEvents,
-  })
+  });
 
-  return framework
+  return framework;
 }

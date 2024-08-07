@@ -2,70 +2,70 @@ import {
   IntegrationAction,
   IntegrationCredentialType,
   IntegrationEvent,
-} from "./types"
-import { ZodSchema } from "zod"
-import { PluginError } from "./utils/errors"
+} from './types';
+import { ZodSchema } from 'zod';
+import { PluginError } from './utils/errors';
 
 export type PluginConfig = {
-  name: string
-  logoUrl: string
-  scopes?: string[]
-  authType?: IntegrationCredentialType
-  authConnectionOptions?: ZodSchema
-  [key: string]: any
-}
+  name: string;
+  logoUrl: string;
+  scopes?: string[];
+  authType?: IntegrationCredentialType;
+  authConnectionOptions?: ZodSchema;
+  [key: string]: any;
+};
 
 export class IntegrationPlugin {
-  name: string
-  logoUrl: string
+  name: string;
+  logoUrl: string;
 
-  config: Omit<PluginConfig, "name" | "logoUrl"> & { [key: string]: any } = {}
-  events: Record<string, IntegrationEvent> = {}
+  config: Omit<PluginConfig, 'name' | 'logoUrl'> & { [key: string]: any } = {};
+  events: Record<string, IntegrationEvent> = {};
 
   constructor(config: PluginConfig) {
     if (!config?.name) {
-      throw new PluginError("Plugin name must be defined")
+      throw new PluginError('Plugin name must be defined');
     }
 
     if (!config?.logoUrl) {
-      throw new PluginError("Plugin logoUrl must be defined")
+      throw new PluginError('Plugin logoUrl must be defined');
     }
 
-    const { name, logoUrl, ...others } = config
-    this.name = name
-    this.logoUrl = logoUrl
-    this.config = others
+    const { name, logoUrl, ...others } = config;
+    this.name = name;
+    this.logoUrl = logoUrl;
+    this.config = others;
   }
 
   getConfig() {
-    return this.config
+    return this.config;
   }
 
   getEventHandlers(): any[] {
-    return []
+    return [];
   }
 
   getActions(): Record<string, IntegrationAction<any>> {
-    return {}
+    return {};
   }
 
   defineEvents() {}
 
   getEvents() {
-    return this.events
+    return this.events;
   }
 
   getEvent(name: string) {
-    const event = this.events[name]
+    const event = this.events[name];
 
     if (!event) {
-      throw new Error(`No event exists for this name: ${name}`)
+      throw new Error(`No event exists for this name: ${name}`);
     }
-    return event
+    return event;
   }
 
   getEventKey(name: string) {
-    return this.getEvent(name).key
+    return this.getEvent(name).key;
   }
 
   //   async sendEvent({
