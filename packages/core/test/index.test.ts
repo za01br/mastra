@@ -1,7 +1,15 @@
-import { sum } from '../src/index';
+import { createFramework } from '../src/index';
+//TODO: Figure out jest ts support with ts-jest
+import { describe, expect, it } from '@jest/globals';
 
-describe('sum', () => {
-  it('adds two numbers together', () => {
-    expect(sum(1, 1)).toEqual(2);
+describe('createFramework', () => {
+  it('should return a framework object', () => {
+    const framework = createFramework({
+      name: 'test',
+      plugins: [],
+      SystemActions: [],
+      SystemEvents: [],
+    });
+    expect(framework).toBeDefined();
   });
 });
