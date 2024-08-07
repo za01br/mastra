@@ -1,11 +1,16 @@
 import { IntegrationPlugin } from "./plugin"
-import { IntegrationAction, IntegrationEvent } from "./types"
+import {
+  IntegrationAction,
+  IntegrationActionExcutorParams,
+  IntegrationEvent,
+} from "./types"
+import { omitBy } from "lodash"
 
 interface Config {
   name: string
   plugins: IntegrationPlugin[]
-  coreActions: Omit<IntegrationAction, "pluginName">[]
-  coreEvents: IntegrationEvent[]
+  SystemActions: IntegrationAction[]
+  SystemEvents: IntegrationEvent[]
 }
 
 class IntegrationFramework {
@@ -23,16 +28,133 @@ class IntegrationFramework {
 
     pluginDefinition.defineEvents()
 
-    this.globalEvents.set(name, pluginDefinition.getEvents())
+    this.registerEvents({
+      events: Object.values(pluginDefinition.getEvents()),
+      pluginName: name,
+    })
 
     this.globalEventHandlers.push(...pluginDefinition.getEventHandlers())
 
-    this.globalActions.set(name, pluginDefinition.getActions())
+    this.registerActions({
+      actions: Object.values(pluginDefinition.getActions()),
+      pluginName: name,
+    })
+  }
+
+  registerEvents({
+    events,
+    pluginName = "SYSTEM",
+  }: {
+    events: IntegrationEvent[]
+    pluginName?: string
+  }) {
+    const pluginEvents = this.globalEvents.get(pluginName) || {}
+    this.globalEvents.set(pluginName, {
+      ...pluginEvents,
+      ...events.reduce((acc, event) => ({ ...acc, [event.key]: event }), {}),
+    })
+  }
+
+  registerActions({
+    actions,
+    pluginName = "SYSTEM",
+  }: {
+    actions: IntegrationAction[]
+    pluginName?: string
+  }) {
+    const pluginActions = this.globalActions.get(pluginName) || {}
+    this.globalActions.set(pluginName, {
+      ...pluginActions,
+      ...actions.reduce(
+        (acc, action) => ({ ...acc, [action.type]: action }),
+        {}
+      ),
+    })
+  }
+
+  availablePlugins() {
+    return Array.from(this.plugins.entries()).map(([name, plugin]) => {
+      return {
+        name,
+        plugin,
+      }
+    })
+  }
+
+  getPlugin(name: string) {
+    return this.plugins.get(name)
+  }
+
+  getGlobalEvents() {
+    return this.globalEvents
+  }
+
+  getSystemEvents() {
+    const events = this.globalEvents.get("SYSTEM")
+    return omitBy(events, (value) => value.triggerProperties?.isHidden)
+  }
+
+  getEventsByPlugin(name: string) {
+    return this.globalEvents.get(name)
+  }
+
+  getGlobalEventHandlers() {
+    return this.globalEventHandlers
+  }
+
+  getActions() {
+    return this.globalActions
+  }
+
+  getSystemActions() {
+    return this.globalActions.get("SYSTEM")
+  }
+
+  getActionsByPlugin(name: string, includeHidden?: boolean) {
+    const pluginActions = this.globalActions.get(name)
+
+    if (includeHidden) {
+      return pluginActions
+    }
+    return omitBy(pluginActions, (value) => value.isHidden)
+  }
+
+  async executeAction({
+    pluginName = "SYSTEM",
+    action,
+    payload,
+  }: {
+    pluginName?: string
+    action: string
+    payload: IntegrationActionExcutorParams<any>
+  }) {
+    if (pluginName === "SYSTEM") {
+      const actionExecutor = this.globalActions.get("SYSTEM")?.[action]
+
+      if (!actionExecutor) {
+        throw new Error(`No global action exists for ${action}`)
+      }
+
+      return actionExecutor.executor(payload)
+    }
+
+    const plugin = this.getPlugin(pluginName)
+    if (!plugin) {
+      throw new Error(`No plugin exists for ${pluginName}`)
+    }
+
+    const actionExecutor = plugin.getActions()?.[action]
+
+    if (!actionExecutor) {
+      throw new Error(`No action exists for ${action} in ${pluginName}`)
+    }
+
+    return actionExecutor.executor(payload)
   }
 }
 
 export function createFramework(config: Config) {
-  console.log("Hello from core")
+  console.log("Hello from FRAMEWORK")
   console.log(JSON.stringify(config, null, 2))
 
   const framework = new IntegrationFramework()
@@ -42,14 +164,14 @@ export function createFramework(config: Config) {
     framework.registerPlugin(plugin)
   })
 
-  // Register core actions
-  config.coreActions.forEach((action) => {
-    this.globalActions.set("CORE", { [action.type]: action })
+  // Register System actions
+  framework.registerActions({
+    actions: config.SystemActions,
   })
 
-  // Register core events
-  config.coreEvents.forEach((event) => {
-    this.globalEvents.set("CORE", { [event.key]: event })
+  // Register System events
+  framework.registerEvents({
+    events: config.SystemEvents,
   })
 
   return framework
