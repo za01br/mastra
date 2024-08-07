@@ -13,6 +13,8 @@ interface Config {
   SystemEvents: IntegrationEvent[]
 }
 
+const CORE_PLUGIN_NAME = "SYSTEM"
+
 class IntegrationFramework {
   //global events grouped by plugin
   globalEvents: Map<string, Record<string, IntegrationEvent>> = new Map()
@@ -43,7 +45,7 @@ class IntegrationFramework {
 
   registerEvents({
     events,
-    pluginName = "SYSTEM",
+    pluginName = CORE_PLUGIN_NAME,
   }: {
     events: IntegrationEvent[]
     pluginName?: string
@@ -57,7 +59,7 @@ class IntegrationFramework {
 
   registerActions({
     actions,
-    pluginName = "SYSTEM",
+    pluginName = CORE_PLUGIN_NAME,
   }: {
     actions: IntegrationAction[]
     pluginName?: string
@@ -90,7 +92,7 @@ class IntegrationFramework {
   }
 
   getSystemEvents() {
-    const events = this.globalEvents.get("SYSTEM")
+    const events = this.globalEvents.get(CORE_PLUGIN_NAME)
     return omitBy(events, (value) => value.triggerProperties?.isHidden)
   }
 
@@ -107,7 +109,7 @@ class IntegrationFramework {
   }
 
   getSystemActions() {
-    return this.globalActions.get("SYSTEM")
+    return this.globalActions.get(CORE_PLUGIN_NAME)
   }
 
   getActionsByPlugin(name: string, includeHidden?: boolean) {
@@ -120,7 +122,7 @@ class IntegrationFramework {
   }
 
   async executeAction({
-    pluginName = "SYSTEM",
+    pluginName = CORE_PLUGIN_NAME,
     action,
     payload,
   }: {
@@ -128,8 +130,8 @@ class IntegrationFramework {
     action: string
     payload: IntegrationActionExcutorParams<any>
   }) {
-    if (pluginName === "SYSTEM") {
-      const actionExecutor = this.globalActions.get("SYSTEM")?.[action]
+    if (pluginName === CORE_PLUGIN_NAME) {
+      const actionExecutor = this.globalActions.get(CORE_PLUGIN_NAME)?.[action]
 
       if (!actionExecutor) {
         throw new Error(`No global action exists for ${action}`)
