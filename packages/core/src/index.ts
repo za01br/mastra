@@ -13,7 +13,7 @@ interface Config {
   SystemEvents: IntegrationEvent[];
 }
 
-const CORE_PLUGIN_NAME = 'SYSTEM';
+export const CORE_PLUGIN_NAME = 'SYSTEM';
 
 class IntegrationFramework {
   //global events grouped by plugin
@@ -36,12 +36,14 @@ class IntegrationFramework {
       pluginName: name,
     });
 
-    this.globalEventHandlers.push(...pluginDefinition.getEventHandlers());
+    pluginDefinition.defineActions();
 
     this.registerActions({
       actions: Object.values(pluginDefinition.getActions()),
       pluginName: name,
     });
+
+    this.globalEventHandlers.push(...pluginDefinition.getEventHandlers());
   }
 
   registerEvents({

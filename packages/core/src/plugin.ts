@@ -21,6 +21,7 @@ export class IntegrationPlugin {
 
   config: Omit<PluginConfig, 'name' | 'logoUrl'> & { [key: string]: any } = {};
   events: Record<string, IntegrationEvent> = {};
+  actions: Record<string, IntegrationAction<any>> = {};
 
   constructor(config: PluginConfig) {
     if (!config?.name) {
@@ -45,8 +46,10 @@ export class IntegrationPlugin {
     return [];
   }
 
-  getActions(): Record<string, IntegrationAction<any>> {
-    return {};
+  defineActions() {}
+
+  getActions() {
+    return this.actions;
   }
 
   defineEvents() {}
