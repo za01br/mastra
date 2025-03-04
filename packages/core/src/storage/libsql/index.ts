@@ -174,15 +174,19 @@ export class LibSQLStore extends MastraStorage {
     }
 
     const row = result.rows[0];
-    // Parse any JSON strings in the result
+    // Checks whether the string looks like a JSON object ({}) or array ([])
+    // If the string starts with { or [, it assumes it's JSON and parses it
+    // Otherwise, it just returns, preventing unintended number conversions
     const parsed = Object.fromEntries(
       Object.entries(row || {}).map(([k, v]) => {
         try {
-          return [k, typeof v === 'string' ? JSON.parse(v) : v];
+          return [k, typeof v === 'string' ? 
+            (v.startsWith('{') || v.startsWith('[') ? JSON.parse(v) : v) 
+            : v];
         } catch {
           return [k, v];
         }
-      }),
+      })
     );
 
     return parsed as R;
