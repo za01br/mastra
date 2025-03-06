@@ -139,7 +139,16 @@ export class LibSQLStore extends MastraStorage {
 
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
     try {
-      await this.client.execute(this.prepareStatement({ tableName, record }));
+      await this.client.execute(
+        this.prepareStatement({
+          tableName,
+          record: {
+            ...record,
+            createdAt: record.createdAt instanceof Date ? record.createdAt.toISOString() : record.createdAt,
+            updatedAt: record.updatedAt instanceof Date ? record.updatedAt.toISOString() : record.updatedAt,
+          },
+        }),
+      );
     } catch (error) {
       this.logger.error(`Error upserting into table ${tableName}: ${error}`);
       throw error;
@@ -180,13 +189,11 @@ export class LibSQLStore extends MastraStorage {
     const parsed = Object.fromEntries(
       Object.entries(row || {}).map(([k, v]) => {
         try {
-          return [k, typeof v === 'string' ? 
-            (v.startsWith('{') || v.startsWith('[') ? JSON.parse(v) : v) 
-            : v];
+          return [k, typeof v === 'string' ? (v.startsWith('{') || v.startsWith('[') ? JSON.parse(v) : v) : v];
         } catch {
           return [k, v];
         }
-      })
+      }),
     );
 
     return parsed as R;
