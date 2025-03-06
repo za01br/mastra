@@ -2,33 +2,36 @@ import EventEmitter from 'node:events';
 import type { Span } from '@opentelemetry/api';
 import { get } from 'radash';
 import sift from 'sift';
-import { assign, createActor, fromPromise, setup } from 'xstate';
 import type { MachineContext, Snapshot } from 'xstate';
+import { assign, createActor, fromPromise, setup } from 'xstate';
 import type { z } from 'zod';
 
 import type { IAction, MastraPrimitives } from '../action';
 import type { Logger } from '../logger';
 
+import type { Mastra } from '../mastra';
+import { createMastraProxy } from '../utils';
 import type { Step } from './step';
-import {
-  WhenConditionReturnValue,
-  type DependencyCheckOutput,
-  type ResolverFunctionInput,
-  type ResolverFunctionOutput,
-  type RetryConfig,
-  type StepCondition,
-  type StepDef,
-  type StepGraph,
-  type StepNode,
-  type StepResult,
-  type StepVariableType,
-  type WorkflowActionParams,
-  type WorkflowActions,
-  type WorkflowActors,
-  type WorkflowContext,
-  type WorkflowEvent,
-  type WorkflowState,
+import type {
+  DependencyCheckOutput,
+  ResolverFunctionInput,
+  ResolverFunctionOutput,
+  RetryConfig,
+  StepAction,
+  StepCondition,
+  StepDef,
+  StepGraph,
+  StepNode,
+  StepResult,
+  StepVariableType,
+  WorkflowActionParams,
+  WorkflowActions,
+  WorkflowActors,
+  WorkflowContext,
+  WorkflowEvent,
+  WorkflowState,
 } from './types';
+import { WhenConditionReturnValue } from './types';
 import {
   getResultActivePaths,
   getStepResult,
@@ -41,10 +44,10 @@ import type { WorkflowInstance } from './workflow-instance';
 
 export class Machine<
   TSteps extends Step<any, any, any>[] = any,
-  TTriggerSchema extends z.ZodType<any> = any,
+  TTriggerSchema extends z.ZodObject<any> = any,
 > extends EventEmitter {
   logger: Logger;
-  #mastra?: MastraPrimitives;
+  #mastra?: Mastra;
   #workflowInstance: WorkflowInstance;
   #executionSpan?: Span | undefined;
 
@@ -55,7 +58,7 @@ export class Machine<
   name: string;
 
   #actor: ReturnType<typeof createActor<ReturnType<typeof this.initializeMachine>>> | null = null;
-  #steps: Record<string, IAction<any, any, any, any>> = {};
+  #steps: Record<string, StepAction<any, any, any, any>> = {};
   #retryConfig?: RetryConfig;
 
   constructor({
@@ -71,7 +74,7 @@ export class Machine<
     startStepId,
   }: {
     logger: Logger;
-    mastra?: MastraPrimitives;
+    mastra?: Mastra;
     workflowInstance: WorkflowInstance;
     executionSpan?: Span;
     name: string;
@@ -320,6 +323,11 @@ export class Machine<
           runId: this.#runId,
         });
 
+        const logger = this.logger;
+        let mastraProxy = undefined;
+        if (this.#mastra) {
+          mastraProxy = createMastraProxy({ mastra: this.#mastra, logger });
+        }
         const result = await stepNode.config.handler({
           context: resolvedData,
           suspend: async (payload?: any) => {
@@ -337,7 +345,7 @@ export class Machine<
             }
           },
           runId: this.#runId,
-          mastra: this.#mastra,
+          mastra: mastraProxy as (Mastra & MastraPrimitives) | undefined,
         });
 
         this.logger.debug(`Step ${stepNode.step.id} result`, {
@@ -441,7 +449,11 @@ export class Machine<
         }) => {
           const { parentStepId, context } = input;
           const result = await this.#workflowInstance.runMachine(parentStepId, context);
-          return Promise.resolve({ steps: result?.results });
+          return Promise.resolve({
+            steps: result.reduce((acc, r) => {
+              return { ...acc, ...r?.results };
+            }, {}),
+          });
         },
       ),
     };
@@ -827,7 +839,7 @@ export class Machine<
     };
   }
 
-  #evaluateCondition<TStep extends StepVariableType<any, any, any, any>, TTriggerSchema extends z.ZodType<any>>(
+  #evaluateCondition<TStep extends StepVariableType<any, any, any, any>, TTriggerSchema extends z.ZodObject<any>>(
     condition: StepCondition<TStep, TTriggerSchema>,
     context: WorkflowContext,
   ): boolean {
@@ -911,6 +923,14 @@ export class Machine<
       orBranchResult = condition.or.some(cond => this.#evaluateCondition(cond, context));
       this.logger.debug(`Evaluated OR condition`, {
         orBranchResult,
+        runId: this.#runId,
+      });
+    }
+
+    if ('not' in condition) {
+      baseResult = !this.#evaluateCondition(condition.not, context);
+      this.logger.debug(`Evaluated NOT condition`, {
+        baseResult,
         runId: this.#runId,
       });
     }
